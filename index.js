@@ -10,8 +10,14 @@ const {
   map,
   switchMap,
   tap,
+  last,
+  scan,
 } = require('rxjs');
 const { forEachDelay } = require('./rxjshelper/forEachDelay');
+const { promisify } = require('util');
+const googleIt = require('google-it');
+const uniqid = require('uniqid');
+const fs = require('fs');
 
 async function getUniqueRowFromSpreadsheet() {
   const doc = new GoogleSpreadsheet(
@@ -52,10 +58,27 @@ const sampleRows = [
 const $uniqueSearchTerms = from(new Promise((res) => res(sampleRows)))
   .pipe(
     mergeAll(),
-    take(1),
+    // get the first 1 rows for development purpose
+    take(2),
+    // space out the requests
     forEachDelay(1000),
-    map(googleSearchUrl),
-    map(encodeURI),
-    switchMap((url) => axios.get(url))
+    switchMap(async (keywords) => {
+      const result = await googleIt({ query: keywords });
+      return { ...result, _id: uniqid(), keywords };
+    }),
+    scan((acc, value) => {
+      acc.push(value);
+      return acc;
+    }, []),
+    last()
   )
-  .subscribe((e) => console.log(e.data));
+  .subscribe((e) => {
+    fs.writeFile('./test.json', JSON.stringify(e), (err) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+      //file written successfully
+      console.log('file written successfully');
+    });
+  });
