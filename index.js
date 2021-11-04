@@ -1,15 +1,17 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
-const axios = require('axios');
+const axios = require('axios').default;
 require('dotenv').config();
 const {
   Observable,
   from,
-  of,
   throttleTime,
   mergeAll,
-  concatMap,
-  delay,
+  take,
+  map,
+  switchMap,
+  tap,
 } = require('rxjs');
+const { forEachDelay } = require('./rxjshelper/forEachDelay');
 
 async function getUniqueRowFromSpreadsheet() {
   const doc = new GoogleSpreadsheet(
@@ -37,7 +39,23 @@ async function getUniqueRowFromSpreadsheet() {
 }
 const googleSearchUrl = (query) => `https://www.google.com/search?q=${query}`;
 
+const sampleRows = [
+  '「向山舉目」助學金會',
+  '八仁社',
+  '大埔泮涌社區教育中心有限公司',
+  '小西灣南海觀音廟管理委員會',
+  '中華彌勒文化慈善基金會有限公司',
+];
+
 // create observable of uniqueRows
-const $uniqueSearchTerms = from(getUniqueRowFromSpreadsheet())
-  .pipe(mergeAll(), forEachDelay(1000))
-  .subscribe(console.log);
+// const $uniqueSearchTerms = from(getUniqueRowFromSpreadsheet())
+const $uniqueSearchTerms = from(new Promise((res) => res(sampleRows)))
+  .pipe(
+    mergeAll(),
+    take(1),
+    forEachDelay(1000),
+    map(googleSearchUrl),
+    map(encodeURI),
+    switchMap((url) => axios.get(url))
+  )
+  .subscribe((e) => console.log(e.data));
