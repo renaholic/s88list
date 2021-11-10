@@ -43,25 +43,25 @@ async function getUniqueRowFromSpreadsheet() {
     .filter(Boolean);
   return [...new Set(searchEntry)];
 }
-const googleSearchUrl = (query) => `https://www.google.com/search?q=${query}`;
+// const googleSearchUrl = (query) => `https://www.google.com/search?q=${query}`;
 
-const sampleRows = [
-  '「向山舉目」助學金會',
-  '八仁社',
-  '大埔泮涌社區教育中心有限公司',
-  '小西灣南海觀音廟管理委員會',
-  '中華彌勒文化慈善基金會有限公司',
-];
+// const sampleRows = [
+//   '「向山舉目」助學金會',
+//   '八仁社',
+//   '大埔泮涌社區教育中心有限公司',
+//   '小西灣南海觀音廟管理委員會',
+//   '中華彌勒文化慈善基金會有限公司',
+// ];
 
 // create observable of uniqueRows
-// const $uniqueSearchTerms = from(getUniqueRowFromSpreadsheet())
-const $uniqueSearchTerms = from(new Promise((res) => res(sampleRows)))
+const $uniqueSearchTerms = from(getUniqueRowFromSpreadsheet())
+  // const $uniqueSearchTerms = from(new Promise((res) => res(sampleRows)))
   .pipe(
     mergeAll(),
     // get the first 1 rows for development purpose
     take(2),
     // space out the requests
-    forEachDelay(1000),
+    forEachDelay(5000),
     switchMap(async (keywords) => {
       const result = await googleIt({ query: keywords });
       return { ...result, _id: uniqid(), keywords };
@@ -71,14 +71,15 @@ const $uniqueSearchTerms = from(new Promise((res) => res(sampleRows)))
       return acc;
     }, []),
     last()
-  )
-  .subscribe((e) => {
-    fs.writeFile('./test.json', JSON.stringify(e), (err) => {
-      if (err) {
-        console.error(err);
-        return;
-      }
-      //file written successfully
-      console.log('file written successfully');
-    });
+  );
+
+$uniqueSearchTerms.subscribe((e) => {
+  fs.writeFile('./test.json', JSON.stringify(e), (err) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    //file written successfully
+    console.log('file written successfully');
   });
+});
